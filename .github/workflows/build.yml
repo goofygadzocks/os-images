@@ -1,0 +1,65 @@
+name: build
+
+on:
+  schedule:
+    - cron: "0 10 * * *" # daily ~04:00 America/Denver (03:00 during DST)
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+env:
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  IMAGE_NAME: os
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [virt, dumper]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build ${{ matrix.variant }}
+        run: |
+          podman build \
+            --target ${{ matrix.variant }} \
+            -t ${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ matrix.variant }} \
+            -f Containerfile .
+
+      - name: Push
+        run: |
+          podman push \
+            --digestfile /tmp/digest \
+            ${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ matrix.variant }}
+          echo "DIGEST=$(cat /tmp/digest)" >> "$GITHUB_ENV"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: |
+          cosign sign -y \
+            --key env://COSIGN_PRIVATE_KEY \
+            ${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}
