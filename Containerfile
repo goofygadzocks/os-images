@@ -13,12 +13,17 @@ RUN curl -fsSL https://repo.vivaldi.com/archive/vivaldi-fedora.repo \
       -o /etc/yum.repos.d/vivaldi.repo
 
 # --- Packages shared by all variants -----------------------------------------
-RUN dnf install -y \
+RUN rm /opt && mkdir /opt && \
+    dnf install -y \
       iotop \
       lm_sensors \
       rasdaemon \
       vivaldi-stable && \
     dnf clean all && \
+    mv /opt/vivaldi /usr/lib/vivaldi && \
+    rmdir /opt && \
+    ln -s var/opt /opt && \
+    printf 'L /opt/vivaldi - - - - /usr/lib/vivaldi\n' > /usr/lib/tmpfiles.d/vivaldi.conf && \
     systemctl enable rasdaemon.service
 
 # --- Shared config -----------------------------------------------------------
