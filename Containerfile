@@ -23,7 +23,7 @@ RUN rm /opt && mkdir /opt && \
     mv /opt/vivaldi /usr/lib/vivaldi && \
     rmdir /opt && \
     ln -s var/opt /opt && \
-    printf 'L /opt/vivaldi - - - - /usr/lib/vivaldi\n' > /usr/lib/tmpfiles.d/vivaldi.conf && \
+    printf 'L+ /opt/vivaldi - - - - /usr/lib/vivaldi\n' > /usr/lib/tmpfiles.d/vivaldi.conf && \
     systemctl enable rasdaemon.service
 
 # --- Shared config -----------------------------------------------------------
