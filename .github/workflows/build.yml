@@ -31,6 +31,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Raw + rechunked copies of the image don't fit in the runner's default free space
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      # Rootless login is what cosign uses; rootful login is what podman push uses
       - name: Log in to GHCR
         uses: redhat-actions/podman-login@v1
         with:
@@ -38,16 +45,31 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to GHCR (root)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # Rootful so the rechunk container can read the image from /var/lib/containers
       - name: Build ${{ matrix.variant }}
         run: |
-          podman build \
+          sudo podman build \
             --target ${{ matrix.variant }} \
-            -t ${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ matrix.variant }} \
+            -t localhost/${IMAGE_NAME}:${{ matrix.variant }}-raw \
             -f Containerfile .
+
+      # Re-split into per-package layers so clients only download what changed
+      - name: Rechunk
+        run: |
+          sudo podman run --rm --privileged \
+            -v /var/lib/containers:/var/lib/containers \
+            quay.io/fedora/fedora-bootc:44 \
+            rpm-ostree compose build-chunked-oci \
+              --bootc --format-version=1 \
+              --from localhost/${IMAGE_NAME}:${{ matrix.variant }}-raw \
+              --output containers-storage:${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ matrix.variant }}
 
       - name: Push
         run: |
-          podman push \
+          sudo podman push \
             --digestfile /tmp/digest \
             ${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ matrix.variant }}
           echo "DIGEST=$(cat /tmp/digest)" >> "$GITHUB_ENV"
