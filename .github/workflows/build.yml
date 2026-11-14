@@ -25,8 +25,15 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
+      # The plain tags are what machines run. The -45 tags are for testing a
+      # Fedora upgrade; to promote, set the plain tags' fedora to 45 and drop
+      # the -45 entries.
       matrix:
-        variant: [virt, dumper]
+        include:
+          - { variant: virt, fedora: "44", tag: virt }
+          - { variant: dumper, fedora: "44", tag: dumper }
+          - { variant: virt, fedora: "45", tag: virt-45 }
+          - { variant: dumper, fedora: "45", tag: dumper-45 }
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -53,11 +60,12 @@ jobs:
             ghcr.io -u "${{ github.actor }}" --password-stdin
 
       # Rootful so the rechunk container can read the image from /var/lib/containers
-      - name: Build ${{ matrix.variant }}
+      - name: Build ${{ matrix.tag }}
         run: |
           sudo podman build \
             --target ${{ matrix.variant }} \
-            -t localhost/${IMAGE_NAME}:${{ matrix.variant }}-raw \
+            --build-arg FEDORA_VERSION=${{ matrix.fedora }} \
+            -t localhost/${IMAGE_NAME}:${{ matrix.tag }}-raw \
             -f Containerfile .
 
       # Re-split into per-package layers so clients only download what changed
@@ -65,18 +73,18 @@ jobs:
         run: |
           sudo podman run --rm --privileged \
             -v /var/lib/containers:/var/lib/containers \
-            quay.io/fedora/fedora-bootc:44 \
+            quay.io/fedora/fedora-bootc:${{ matrix.fedora }} \
             rpm-ostree compose build-chunked-oci \
               --bootc --format-version=1 \
-              --from localhost/${IMAGE_NAME}:${{ matrix.variant }}-raw \
-              --output containers-storage:${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ matrix.variant }}
+              --from localhost/${IMAGE_NAME}:${{ matrix.tag }}-raw \
+              --output containers-storage:${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ matrix.tag }}
 
       - name: Push
         run: |
           sudo podman push \
             --authfile /root/ghcr-auth.json \
             --digestfile /tmp/digest \
-            ${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ matrix.variant }}
+            ${IMAGE_REGISTRY}/${IMAGE_NAME}:${{ matrix.tag }}
           echo "DIGEST=$(cat /tmp/digest)" >> "$GITHUB_ENV"
 
       - name: Install cosign

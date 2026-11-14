@@ -2,11 +2,13 @@
 # os-images: bootc images for cruncher, watcher (:virt) and the Dumper VM
 # (:dumper), derived from Fedora Silverblue.
 #
-# Fedora version bump (e.g. F45 in Oct 2026): change the FROM tag below and,
-# if pinned anywhere else, nothing — RPM Fusion URLs use $(rpm -E %fedora).
+# Fedora version: set per image by the CI matrix (--build-arg FEDORA_VERSION);
+# the default below is only for local builds. RPM Fusion URLs use
+# $(rpm -E %fedora), so nothing else needs changing.
 # =============================================================================
 
-FROM quay.io/fedora/fedora-silverblue:44 AS common
+ARG FEDORA_VERSION=44
+FROM quay.io/fedora/fedora-silverblue:${FEDORA_VERSION} AS common
 
 # --- Third-party repos shared by all variants --------------------------------
 RUN curl -fsSL https://repo.vivaldi.com/archive/vivaldi-fedora.repo \
