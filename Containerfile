@@ -7,7 +7,7 @@
 # $(rpm -E %fedora), so nothing else needs changing.
 # =============================================================================
 
-ARG FEDORA_VERSION=44
+ARG FEDORA_VERSION=45
 FROM quay.io/fedora/fedora-silverblue:${FEDORA_VERSION} AS common
 
 # --- Third-party repos shared by all variants --------------------------------

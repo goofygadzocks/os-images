@@ -25,15 +25,13 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
-      # The plain tags are what machines run. The -45 tags are for testing a
-      # Fedora upgrade; to promote, set the plain tags' fedora to 45 and drop
-      # the -45 entries.
+      # The plain tags are what machines run. To test the next Fedora release,
+      # add entries like { variant: virt, fedora: "46", tag: virt-46 }; to
+      # promote, set the plain tags' fedora to 46 and drop the -46 entries.
       matrix:
         include:
-          - { variant: virt, fedora: "44", tag: virt }
-          - { variant: dumper, fedora: "44", tag: dumper }
-          - { variant: virt, fedora: "45", tag: virt-45 }
-          - { variant: dumper, fedora: "45", tag: dumper-45 }
+          - { variant: virt, fedora: "45", tag: virt }
+          - { variant: dumper, fedora: "45", tag: dumper }
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
