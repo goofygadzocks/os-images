@@ -1,8 +1,26 @@
+// Flatpak's own rule (org.freedesktop.Flatpak.rules) only lets wheel install
+// without a password in local+active sessions, so GNOME Remote Desktop
+// sessions get prompted. Allow the same actions (plus updates) for wheel
+// regardless of session locality.
 polkit.addRule(function(action, subject) {
-    if ((action.id == "org.freedesktop.Flatpak.app-update" ||
+    if ((action.id == "org.freedesktop.Flatpak.app-install" ||
+         action.id == "org.freedesktop.Flatpak.runtime-install" ||
+         action.id == "org.freedesktop.Flatpak.app-uninstall" ||
+         action.id == "org.freedesktop.Flatpak.runtime-uninstall" ||
+         action.id == "org.freedesktop.Flatpak.modify-repo" ||
+         action.id == "org.freedesktop.Flatpak.app-update" ||
          action.id == "org.freedesktop.Flatpak.runtime-update" ||
          action.id == "org.freedesktop.Flatpak.appstream-update" ||
          action.id == "org.freedesktop.Flatpak.metadata-update") &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});
+
+// GNOME Software checks parental-controls app filters before installing.
+// Read-only; allow for wheel.
+polkit.addRule(function(action, subject) {
+    if (action.id == "com.endlessm.ParentalControls.AppFilter.ReadAny" &&
         subject.isInGroup("wheel")) {
         return polkit.Result.YES;
     }
